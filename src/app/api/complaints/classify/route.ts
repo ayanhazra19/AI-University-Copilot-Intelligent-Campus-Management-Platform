@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { classifyComplaintAI } from '@/lib/ai/complaintEngine';
+import { classifyComplaint } from '@/server/services/complaintService';
 
 export async function POST(request: Request) {
   try {
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title or description required' }, { status: 400 });
     }
 
-    const classification = classifyComplaintAI({
+    const classification = await classifyComplaint({
       title: title || '',
       description: description || '',
       location: location || '',

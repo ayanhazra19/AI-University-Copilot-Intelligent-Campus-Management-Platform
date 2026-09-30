@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { processCopilotQuery } from '@/lib/ai/router';
+import { processCopilotQuery } from '@/server/services/copilotService';
 
 export async function POST(request: Request) {
   try {

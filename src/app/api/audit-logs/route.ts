@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { listAuditLogs } from '@/server/services/auditService';
 
 export async function GET() {
   try {
@@ -9,11 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized: Admin role required' }, { status: 403 });
     }
 
-    const logs = await prisma.auditLog.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-
+    const logs = await listAuditLogs(50);
     return NextResponse.json({ logs });
   } catch (error) {
     console.error('Audit logs GET error:', error);

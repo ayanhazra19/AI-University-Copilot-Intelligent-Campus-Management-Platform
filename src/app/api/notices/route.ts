@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { listNotices, createNotice } from '@/server/services/noticeService';
 
 export async function GET(request: Request) {
   try {
@@ -8,20 +8,7 @@ export async function GET(request: Request) {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
 
-    const where: any = { isArchived: false };
-    if (category && category !== 'ALL') where.category = category;
-    if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { content: { contains: search } },
-      ];
-    }
-
-    const notices = await prisma.notice.findMany({
-      where,
-      orderBy: [{ isImportant: 'desc' }, { publishedAt: 'desc' }],
-    });
-
+    const notices = await listNotices({ category, search });
     return NextResponse.json({ notices });
   } catch (error) {
     console.error('Notices GET error:', error);
@@ -42,28 +29,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
     }
 
-    const notice = await prisma.notice.create({
-      data: {
-        title,
-        content,
-        category: category || 'GENERAL',
-        targetRole: targetRole || 'ALL',
-        department: department || 'General Administration',
-        isImportant: Boolean(isImportant),
-        authorName: user.name,
-      },
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        userName: user.name,
-        role: user.role,
-        action: 'NOTICE_PUBLISHED',
-        entity: 'Notice',
-        details: `Published notice "${notice.title}" [Category: ${notice.category}]`,
-      },
-    });
+    const notice = await createNotice(
+      { title, content, category, targetRole, department, isImportant },
+      { id: user.id, name: user.name, role: user.role }
+    );
 
     return NextResponse.json({ success: true, notice });
   } catch (error) {

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
-import { signToken } from '@/lib/auth';
+import { authenticateWithPassword } from '@/server/services/authService';
 
 export async function POST(request: Request) {
   try {
@@ -11,60 +9,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-      include: { student: true, faculty: true },
-    });
+    const result = await authenticateWithPassword(email, password, requiredRole);
 
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    if (!result.success || !result.user || !result.token) {
+      return NextResponse.json({ error: result.error }, { status: result.status || 401 });
     }
 
-    const isValid = bcrypt.compareSync(password, user.password);
-    if (!isValid) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
-    }
-
-    // Role-specific check if requiredRole is passed (e.g. from Admin Login)
-    if (requiredRole && user.role !== requiredRole) {
-      if (requiredRole === 'ADMIN') {
-        return NextResponse.json(
-          { error: 'Access Denied: Only authorized University Administrators may access this portal.' },
-          { status: 403 }
-        );
-      }
-      return NextResponse.json(
-        { error: `Access Denied: Account does not have ${requiredRole} privileges.` },
-        { status: 403 }
-      );
-    }
-
-    const token = signToken({
-      id: user.id,
-      email: user.email,
-      role: user.role as 'STUDENT' | 'FACULTY' | 'ADMIN',
-      name: user.name,
-    });
-
-    const response = NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        department: user.department,
-        avatar: user.avatar,
-        student: user.student,
-        faculty: user.faculty,
-      },
-    });
-
-    response.cookies.set('campusiq_token', token, {
+    const response = NextResponse.json({ user: result.user });
+    response.cookies.set('campusiq_token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;

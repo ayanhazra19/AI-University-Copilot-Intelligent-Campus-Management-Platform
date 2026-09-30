@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { listUserNotifications, markNotificationsAsRead } from '@/server/services/notificationService';
 
 export async function GET() {
   try {
@@ -9,15 +9,8 @@ export async function GET() {
       return NextResponse.json({ notifications: [], unreadCount: 0 });
     }
 
-    const notifications = await prisma.notification.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-
-    const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-    return NextResponse.json({ notifications, unreadCount });
+    const result = await listUserNotifications(user.id);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Notifications GET error:', error);
     return NextResponse.json({ notifications: [], unreadCount: 0 });
@@ -32,17 +25,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}));
-    if (body.all) {
-      await prisma.notification.updateMany({
-        where: { userId: user.id, isRead: false },
-        data: { isRead: true },
-      });
-    } else if (body.id) {
-      await prisma.notification.update({
-        where: { id: body.id },
-        data: { isRead: true },
-      });
-    }
+    await markNotificationsAsRead(user.id, body.id, Boolean(body.all));
 
     return NextResponse.json({ success: true });
   } catch (error) {

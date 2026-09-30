@@ -36,6 +36,7 @@ export function Sidebar({ role }: SidebarProps) {
   const facultyLinks = [
     { label: 'Dashboard', href: '/faculty', icon: LayoutDashboard },
     { label: 'Faculty Copilot', href: '/faculty/copilot', icon: Sparkles, highlight: true },
+    { label: 'Campus Analytics', href: '/faculty/analytics', icon: BarChart3 },
     { label: 'Academic Analytics', href: '/faculty/academics', icon: GraduationCap },
     { label: 'Department Complaints', href: '/faculty/complaints', icon: AlertCircle },
     { label: 'Notices', href: '/faculty/notices', icon: Bell },

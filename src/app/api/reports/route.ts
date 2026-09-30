@@ -1,60 +1,36 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { generateComplaintsReport, generateAttendanceReport } from '@/server/services/reportService';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || 'complaints'; // complaints, academics, attendance
-    const format = searchParams.get('format') || 'json'; // json or csv
+    const type = searchParams.get('type') || 'complaints';
+    const format = (searchParams.get('format') || 'json') as 'json' | 'csv';
 
     if (type === 'complaints') {
-      const complaints = await prisma.complaint.findMany({
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (format === 'csv') {
-        const header = 'TicketNumber,Title,Category,Priority,Department,Status,StudentName,CreatedAt\n';
-        const rows = complaints
-          .map(
-            (c) =>
-              `"${c.ticketNumber}","${c.title.replace(/"/g, '""')}","${c.category}","${c.priority}","${c.department}","${c.status}","${c.studentName}","${c.createdAt.toISOString()}"`
-          )
-          .join('\n');
-
-        return new NextResponse(header + rows, {
+      const report = await generateComplaintsReport(format);
+      if (report.type === 'csv') {
+        return new NextResponse(report.data, {
           headers: {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': 'attachment; filename="CampusIQ_Complaints_Report.csv"',
+            'Content-Type': report.contentType,
+            'Content-Disposition': `attachment; filename="${report.fileName}"`,
           },
         });
       }
-
-      return NextResponse.json({ reportType: 'Complaints', generatedAt: new Date(), data: complaints });
+      return NextResponse.json(report.data);
     }
 
     if (type === 'attendance') {
-      const attendances = await prisma.attendance.findMany({
-        include: { course: true, student: { include: { user: true } } },
-      });
-
-      if (format === 'csv') {
-        const header = 'StudentName,RollNumber,CourseCode,CourseName,Attended,Total,Percentage\n';
-        const rows = attendances
-          .map(
-            (a) =>
-              `"${a.student.user.name}","${a.student.rollNumber}","${a.course.code}","${a.course.name}",${a.attendedClasses},${a.totalClasses},${a.percentage}%`
-          )
-          .join('\n');
-
-        return new NextResponse(header + rows, {
+      const report = await generateAttendanceReport(format);
+      if (report.type === 'csv') {
+        return new NextResponse(report.data, {
           headers: {
-            'Content-Type': 'text/csv',
-            'Content-Disposition': 'attachment; filename="CampusIQ_Attendance_Report.csv"',
+            'Content-Type': report.contentType,
+            'Content-Disposition': `attachment; filename="${report.fileName}"`,
           },
         });
       }
-
-      return NextResponse.json({ reportType: 'Attendance', generatedAt: new Date(), data: attendances });
+      return NextResponse.json(report.data);
     }
 
     return NextResponse.json({ error: 'Unknown report type' }, { status: 400 });

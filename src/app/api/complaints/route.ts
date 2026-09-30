@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { classifyComplaintAI } from '@/lib/ai/complaintEngine';
+import { listComplaints, createComplaint } from '@/server/services/complaintService';
 
 export async function GET(request: Request) {
   try {
@@ -13,38 +12,23 @@ export async function GET(request: Request) {
     const studentOnly = searchParams.get('studentOnly');
 
     const user = await getCurrentUser();
-    const where: any = {};
+    let studentId: string | undefined = undefined;
 
-    if (department && department !== 'ALL') where.department = department;
-    if (status && status !== 'ALL') where.status = status;
-    if (priority && priority !== 'ALL') where.priority = priority;
-    if (category && category !== 'ALL') where.category = category;
-
-    // If user is a student requesting their own complaints
     if (user?.role === 'STUDENT' || studentOnly === 'true') {
       if (user?.student?.id) {
-        where.studentId = user.student.id;
+        studentId = user.student.id;
       }
     }
 
-    const complaints = await prisma.complaint.findMany({
-      where,
-      include: {
-        statusHistory: {
-          orderBy: { createdAt: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+    const result = await listComplaints({
+      department,
+      status,
+      priority,
+      category,
+      studentId,
     });
 
-    const categories = await prisma.complaintCategory.findMany({
-      where: { isActive: true },
-    });
-
-    return NextResponse.json({
-      complaints,
-      categories,
-    });
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Complaints GET error:', error);
     return NextResponse.json({ error: 'Failed to retrieve complaints' }, { status: 500 });
@@ -59,94 +43,34 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { title, description, location } = body;
+    const { title, description, location, category, subcategory, priority, department } = body;
 
     if (!title || !description) {
       return NextResponse.json({ error: 'Title and description are required' }, { status: 400 });
     }
 
-    // 1. Run AI Classification & Priority Engine
-    const aiResult = classifyComplaintAI({
-      title,
-      description,
-      location,
-    });
-
-    // Student identity
-    let studentId = user.student?.id;
-    let studentName = user.name;
-
-    if (!studentId) {
-      const firstStudent = await prisma.studentProfile.findFirst({
-        include: { user: true },
-      });
-      studentId = firstStudent?.id || user.id;
-      studentName = firstStudent?.user?.name || user.name;
-    }
-
-    // Ticket Number: CIQ-XXXX
-    const randomTicketSuffix = Math.floor(1000 + Math.random() * 9000);
-    const ticketNumber = `CIQ-${randomTicketSuffix}`;
-
-    // 2. Create Complaint in DB
-    const complaint = await prisma.complaint.create({
-      data: {
-        ticketNumber,
-        studentId,
-        studentName,
+    const result = await createComplaint(
+      {
         title,
         description,
-        location: location || 'Main Campus',
-        category: body.category || aiResult.category,
-        subcategory: body.subcategory || aiResult.subcategory,
-        priority: body.priority || aiResult.priority,
-        department: body.department || aiResult.department,
-        status: 'SUBMITTED',
-        aiSummary: aiResult.summary,
-        aiPriorityReason: aiResult.priorityReason,
-        statusHistory: {
-          create: [
-            {
-              fromStatus: 'NONE',
-              toStatus: 'SUBMITTED',
-              changedBy: `${studentName} (${user.role})`,
-              note: 'Complaint registered and triaged via CampusIQ AI Classification.',
-            },
-          ],
-        },
+        location,
+        category,
+        subcategory,
+        priority,
+        department,
       },
-      include: {
-        statusHistory: true,
-      },
-    });
-
-    // 3. Create Notification for Student
-    await prisma.notification.create({
-      data: {
-        userId: user.id,
-        title: `Ticket Created: ${complaint.ticketNumber}`,
-        message: `Your grievance has been auto-assigned to ${complaint.department} with ${complaint.priority} priority.`,
-        type: 'COMPLAINT',
-        link: '/student/complaints',
-      },
-    });
-
-    // 4. Create Audit Log
-    await prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        userName: user.name,
+      {
+        id: user.id,
+        name: user.name,
         role: user.role,
-        action: 'COMPLAINT_CREATED',
-        entity: 'Complaint',
-        details: `Created ticket ${complaint.ticketNumber} [${complaint.category} -> ${complaint.department} (${complaint.priority})]`,
-      },
-    });
+        studentId: user.student?.id,
+      }
+    );
 
     return NextResponse.json({
       success: true,
-      complaint,
-      classification: aiResult,
+      complaint: result.complaint,
+      classification: result.classification,
     });
   } catch (error) {
     console.error('Complaints POST error:', error);
