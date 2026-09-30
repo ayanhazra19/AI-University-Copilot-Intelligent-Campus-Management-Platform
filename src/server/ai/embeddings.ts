@@ -23,11 +23,20 @@ export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+function fnv1a(str: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
 /**
  * Deterministic local vectorizer used when GEMINI_API_KEY is omitted or offline.
- * Produces a normalized 128-dimensional frequency hash vector.
+ * Produces a normalized 256-dimensional frequency and n-gram hash vector with strong text separation.
  */
-export function generateLocalFallbackEmbedding(text: string, dimensions: number = 128): number[] {
+export function generateLocalFallbackEmbedding(text: string, dimensions: number = 256): number[] {
   const vector = new Array(dimensions).fill(0);
   const words = text
     .toLowerCase()
@@ -38,13 +47,17 @@ export function generateLocalFallbackEmbedding(text: string, dimensions: number 
   if (words.length === 0) return vector;
 
   for (const word of words) {
-    let hash = 0;
-    for (let i = 0; i < word.length; i++) {
-      hash = (hash << 5) - hash + word.charCodeAt(i);
-      hash |= 0;
+    const h1 = fnv1a(word) % dimensions;
+    const h2 = (fnv1a(word + '_alt') ^ (h1 << 5)) % dimensions;
+    vector[Math.abs(h1)] += 1.5;
+    vector[Math.abs(h2)] += 0.8;
+
+    // Character 3-grams for sub-word matching
+    for (let i = 0; i < word.length - 2; i++) {
+      const gram = word.substring(i, i + 3);
+      const hg = fnv1a(gram) % dimensions;
+      vector[Math.abs(hg)] += 0.35;
     }
-    const idx = Math.abs(hash) % dimensions;
-    vector[idx] += 1;
   }
 
   // L2 Normalize

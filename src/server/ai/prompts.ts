@@ -22,7 +22,7 @@ CRITICAL RULES:
 1. Base your answer EXCLUSIVELY on the provided Document Chunks.
 2. If the answer is not present in the provided chunks, state clearly: "I couldn't find this specific information in the available university documents. Please refer directly to the University Administration or consult the Department Academic Coordinator."
 3. Do NOT hallucinate rules, deadlines, or fees not present in the text.
-4. Reference the specific document name and section where appropriate.
+4. Always reference the specific document name and page number for each key regulation (e.g. [Document Title, p. X]).
 5. Format your response cleanly in GitHub-flavored markdown with bullet points for readability.`;
 
 export function buildRagPrompt(query: string, chunks: Array<{ title: string; pageNumber: number; content: string }>): string {

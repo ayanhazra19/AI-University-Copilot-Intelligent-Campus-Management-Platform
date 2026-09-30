@@ -30,8 +30,20 @@ const ENABLE_LLM_RERANKING = process.env.ENABLE_LLM_RERANKING === 'true';
 const STOPWORDS = new Set([
   'the', 'is', 'at', 'which', 'on', 'and', 'a', 'an', 'in', 'to', 'for', 'of', 'or', 'by',
   'with', 'from', 'as', 'what', 'how', 'when', 'where', 'who', 'why', 'can', 'you', 'please',
-  'tell', 'me', 'about', 'this', 'that', 'there', 'their', 'they', 'our', 'university', 'college'
+  'tell', 'me', 'about', 'this', 'that', 'there', 'their', 'they', 'our', 'university', 'college',
+  'more', 'than', 'happens', 'does', 'any', 'are', 'been', 'being', 'have', 'has', 'had', 'will',
+  'would', 'should', 'could', 'into', 'under', 'over', 'per', 'also'
 ]);
+
+function stemWord(word: string): string {
+  const w = word.toLowerCase().trim();
+  if (w.endsWith('ies') && w.length > 4) return w.slice(0, -3) + 'y';
+  if (w.endsWith('ing') && w.length > 5) return w.slice(0, -3);
+  if (w.endsWith('es') && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith('ed') && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith('s') && !w.endsWith('ss') && w.length > 3) return w.slice(0, -1);
+  return w;
+}
 
 function extractTokens(text: string): string[] {
   return text
@@ -41,16 +53,45 @@ function extractTokens(text: string): string[] {
     .filter((w) => w.length > 2 && !STOPWORDS.has(w));
 }
 
-function calculateKeywordScore(text: string, queryTokens: string[], cleanQuery: string): number {
-  const lower = text.toLowerCase();
-  let score = 0;
-  for (const token of queryTokens) {
-    if (lower.includes(token)) score += 2;
+function calculateKeywordScore(
+  chunk: { content: string; keywords?: string | null; title: string },
+  queryTokens: string[],
+  cleanQuery: string
+): number {
+  if (queryTokens.length === 0) return 0;
+
+  const lowerContent = chunk.content.toLowerCase();
+  const lowerKeywords = (chunk.keywords || '').toLowerCase();
+  const lowerTitle = chunk.title.toLowerCase();
+  const stemmedTokens = queryTokens.map(stemWord);
+
+  let rawScore = 0;
+  for (let i = 0; i < queryTokens.length; i++) {
+    const token = queryTokens[i];
+    const stem = stemmedTokens[i];
+
+    // Priority match on curated document keywords
+    if (lowerKeywords.includes(token) || lowerKeywords.includes(stem)) {
+      rawScore += 5;
+    }
+    // Match on policy document title
+    if (lowerTitle.includes(token) || lowerTitle.includes(stem)) {
+      rawScore += 4;
+    }
+    // Match in chunk body text
+    if (lowerContent.includes(token) || lowerContent.includes(stem)) {
+      rawScore += 3;
+    }
   }
-  if (lower.includes(cleanQuery)) {
-    score += 10;
+
+  // Exact phrase boost
+  if (cleanQuery.length > 8 && lowerContent.includes(cleanQuery)) {
+    rawScore += 12;
   }
-  return score;
+
+  // Normalize to 0.0 - 1.0 based on maximum achievable score for this query
+  const maxPossible = Math.max(1, queryTokens.length * 8);
+  return Math.min(1, rawScore / maxPossible);
 }
 
 /**
@@ -74,15 +115,14 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
   // 2. Generate embedding for query
   const queryVector = await createEmbedding(query);
 
-  // 3. Score chunks using Hybrid Similarity: 0.70 Vector Cosine + 0.30 Lexical/Keyword
+  // 3. Score chunks using Hybrid Similarity: 0.55 Vector Cosine + 0.45 Lexical/Keywords
   const scoredList = await Promise.all(
     chunks.map(async (c) => {
       let chunkVector = deserializeEmbedding(c.embeddingJson);
 
-      // If chunk does not have embedding saved yet, compute & store lazily in background
+      // If chunk does not have embedding saved yet, compute & store lazily
       if (!chunkVector || chunkVector.length === 0) {
         chunkVector = await createEmbedding(c.content + ' ' + (c.keywords || '') + ' ' + c.document.title);
-        // Persist back to DB without blocking
         prisma.documentChunk
           .update({
             where: { id: c.id },
@@ -92,13 +132,14 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
       }
 
       const cosineSim = Math.max(0, cosineSimilarity(queryVector, chunkVector));
-
-      const combinedText = `${c.content} ${c.keywords || ''} ${c.document.title}`;
-      const keywordRaw = calculateKeywordScore(combinedText, queryTokens, cleanQuery);
-      const normalizedKeyword = Math.min(1, keywordRaw / (queryTokens.length * 3 + 1));
+      const normalizedKeyword = calculateKeywordScore(
+        { content: c.content, keywords: c.keywords, title: c.document.title },
+        queryTokens,
+        cleanQuery
+      );
 
       // Weighted hybrid relevance (scale 0..100)
-      const hybridRaw = 0.65 * cosineSim + 0.35 * normalizedKeyword;
+      const hybridRaw = 0.50 * cosineSim + 0.50 * normalizedKeyword;
       const relevanceScore = Math.min(99, Math.round(hybridRaw * 100));
 
       return {
@@ -117,7 +158,7 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
 
   // Filter positive relevance and sort descending
   let topCandidates = scoredList
-    .filter((c) => c.relevanceScore > 20 || c.rawKeyword > 0.2)
+    .filter((c) => c.relevanceScore >= 20 || c.rawKeyword >= 0.20)
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, Math.max(maxResults, 5));
 
@@ -149,7 +190,10 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
   }
 
   const finalChunks = topCandidates.slice(0, maxResults);
-  const foundInKnowledgeBase = finalChunks.length > 0 && finalChunks[0].relevanceScore >= 35;
+  const top = finalChunks[0];
+  const foundInKnowledgeBase =
+    finalChunks.length > 0 &&
+    (top.relevanceScore >= 28 || (top.rawKeyword >= 0.25 && top.rawCosine >= 0.18));
 
   return {
     chunks: finalChunks,

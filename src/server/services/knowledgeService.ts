@@ -65,9 +65,9 @@ export async function searchKnowledgeBase(query: string, maxResults: number = 3)
   // Graceful offline fallback if Gemini was unavailable or returned empty
   if (!answer) {
     const topChunk = retrieval.chunks[0];
-    answer = `Based on **${topChunk.documentTitle}** (Page ${topChunk.pageNumber}):\n\n${topChunk.content}`;
+    answer = `Based on **${topChunk.documentTitle}** [p. ${topChunk.pageNumber}]:\n\n${topChunk.content}`;
     if (retrieval.chunks.length > 1) {
-      answer += `\n\nAdditional context from **${retrieval.chunks[1].documentTitle}** (Page ${retrieval.chunks[1].pageNumber}):\n\n${retrieval.chunks[1].content}`;
+      answer += `\n\nAdditional official provision from **${retrieval.chunks[1].documentTitle}** [p. ${retrieval.chunks[1].pageNumber}]:\n\n${retrieval.chunks[1].content}`;
     }
   }
 

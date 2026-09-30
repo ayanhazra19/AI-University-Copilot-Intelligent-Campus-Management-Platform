@@ -27,7 +27,7 @@ async function runTestSuite() {
   const student = await prisma.studentProfile.findFirst({ include: { user: true } });
   assert(Boolean(student && student.rollNumber === 'CSE-2023-042'), `Student Aarav Sharma roll CSE-2023-042 verified`);
 
-  // 2. Pillar 1: RAG Knowledge Retrieval & Citations
+  // 2. Pillar 1: RAG Knowledge Retrieval & Citations across all 6 University Policies
   const rag1 = await searchKnowledgeBase('What is the attendance requirement?');
   assert(
     rag1.foundInKnowledgeBase && rag1.sources.length > 0,
@@ -42,6 +42,30 @@ async function runTestSuite() {
   assert(
     rag2.foundInKnowledgeBase && rag2.answer.includes('10:00 PM'),
     `RAG retrieves hostel curfew timing (10:00 PM) correctly`
+  );
+
+  const rag3 = await searchKnowledgeBase('How much is the exam re-evaluation fee?');
+  assert(
+    rag3.foundInKnowledgeBase && (rag3.answer.includes('25') || rag3.answer.includes('500')),
+    `RAG retrieves re-evaluation fee ($25 / INR 500) from Examination Rules`
+  );
+
+  const rag4 = await searchKnowledgeBase('How many books can undergraduate students borrow from library?');
+  assert(
+    rag4.foundInKnowledgeBase && rag4.answer.includes('4 books') && rag4.sources[0].fileName.includes('Library'),
+    `RAG retrieves undergraduate 4-book loan quota from Central Library Policy`
+  );
+
+  const rag5 = await searchKnowledgeBase('What is daily campus Wi-Fi data quota limit?');
+  assert(
+    rag5.foundInKnowledgeBase && rag5.answer.includes('15 GB'),
+    `RAG retrieves 15 GB daily data quota from Campus IT Policy`
+  );
+
+  const rag6 = await searchKnowledgeBase('What happens if a complaint is unresolved for 48 hours?');
+  assert(
+    rag6.foundInKnowledgeBase && (rag6.answer.includes('Escalation') || rag6.answer.includes('Dean')),
+    `RAG retrieves grievance escalation matrix from Student Redressal Charter`
   );
 
   const ragEmpty = await searchKnowledgeBase('Quantum teleportation warp drive instructions');
