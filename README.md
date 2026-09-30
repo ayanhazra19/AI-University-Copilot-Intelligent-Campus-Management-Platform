@@ -31,8 +31,8 @@ CampusIQ includes rich synthetic demo data and a **1-Click Persona Switcher** in
 | Role | Demo Email | Password | Persona Overview | Primary Workspaces |
 |---|---|---|---|---|
 | **Student** | `student@campusiq.edu` | `student123` | **Aarav Sharma** &bull; B.Tech CSE (Sem 4) &bull; Roll: `CSE-2023-042` | Dashboard, Copilot, Academics, Complaints, Notices, Documents |
-| **Faculty** | `faculty@campusiq.edu` | `faculty123` | **Dr. Sunita Rao** &bull; Assoc. Professor &amp; HoD Academics | Courses (DSA &amp; DBMS), Cohort Attendance, Early Advisories |
-| **Administrator** | `admin@campusiq.edu` | `admin123` | **Prof. Rajesh Verma** &bull; Dean of Campus Administration | Executive KPIs, Triage Board, Knowledge Base, Campus Analytics |
+| **Faculty** | `faculty@campusiq.edu` | `faculty123` | **Dr. Priya Nair** &bull; Assoc. Professor &amp; HoD Academics | Courses (DSA &amp; DBMS), Cohort Attendance, Early Advisories |
+| **Administrator** | `admin@campusiq.edu` | `admin123` | **Dr. Rajesh Kumar** &bull; Dean of Campus Administration | Executive KPIs, Triage Board, Knowledge Base, Campus Analytics |
 
 ---
 
@@ -110,7 +110,7 @@ npm run seed
 ```bash
 npm test
 ```
-*(All 17 automated tests verify RAG retrieval, academic gap logic, complaint triage, and analytics queries).*
+*(All 24 automated tests verify database integrity, RAG retrieval across 6 policy documents, grounded citations, academic gap analysis, early attendance warnings, triage priorities with safety rationales, read-only analytics, and intelligent query routing).*
 
 ### 5. Start the Development Server
 ```bash
@@ -120,13 +120,20 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 ---
 
+## 📋 Documentation & Demo Guides
+
+- **[Live Demo Script (DEMO.md)](./DEMO.md)**: A complete 3-minute script for judges with step-by-step click-through, offline fallback contingency, and judge Q&A defense.
+- **[User Manual (USER_MANUAL.md)](./USER_MANUAL.md)**: Comprehensive guide for Student, Faculty, and Admin workflows.
+
+---
+
 ## 📋 5–7 Minute Judge Demonstration Script
 
 1. **Start on Landing Page:** Click **"Launch Live Interactive Prototype"** &rarr; **Student Persona (Aarav)**.
 2. **Test RAG Copilot:** Ask *"What is the attendance requirement?"* Observe grounded policy citation referencing `University_Attendance_Policy_2024_25.pdf (Page 1)`.
 3. **Test Academic Intelligence:** Ask *"What should I focus on academically?"* Observe explainable diagnostic of CS204 Subnetting (58%) and the 70% attendance alert.
 4. **Log a Grievance:** Click **Submit Complaint** &rarr; Enter *"Wi-Fi is not working in Hostel Block B, 3rd Floor"*. Watch AI auto-tag Category `Hostel`, Priority `HIGH`, and Department `IT Services`.
-5. **Switch to Admin Persona:** Use the top bar to switch to **Admin (Prof. Rajesh)**.
+5. **Switch to Admin Persona:** Use the top bar to switch to **Admin (Dr. Rajesh Kumar)**.
 6. **Progress Grievance Status:** Open **Complaint Command**, find the new ticket, and transition status from `SUBMITTED` to `IN PROGRESS` with a technician note.
 7. **Ask Campus Data:** Open **Campus Analytics**, ask *"Which department has the most unresolved complaints?"*, and review the generated chart and executive summary.
 8. **Inspect Knowledge Base:** Open **Knowledge Base** to view indexed documents, semantic chunks, and upload new policies.
