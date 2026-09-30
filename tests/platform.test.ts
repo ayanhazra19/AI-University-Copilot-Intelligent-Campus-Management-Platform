@@ -126,7 +126,7 @@ async function runTestSuite() {
     `Campus Analytics generated actionable insights (${analyticsResult.insights.length} points)`
   );
 
-  // 6. Context-Aware Query Routing
+  // 6. Context-Aware Query Routing (All 5 Categories)
   const routeAcademic = await processCopilotQuery({
     query: 'What should I focus on academically?',
     userRole: 'STUDENT',
@@ -145,6 +145,34 @@ async function runTestSuite() {
   assert(
     routeComplaint.queryCategory === 'COMPLAINT_ACTION' && routeComplaint.actionRecommendation?.type === 'COMPLAINT_DRAFT',
     `Router automatically offered one-click COMPLAINT_DRAFT workflow`
+  );
+
+  const routeGeneral = await processCopilotQuery({
+    query: 'Hello! Who are you?',
+    userRole: 'STUDENT',
+    studentProfileId: student?.id,
+  });
+  assert(
+    routeGeneral.queryCategory === 'GENERAL' && routeGeneral.answer.includes('CampusIQ Copilot'),
+    `Router classified greeting to GENERAL with helpful guidance response`
+  );
+
+  const routeAnalytics = await processCopilotQuery({
+    query: 'Which department has the most unresolved complaints?',
+    userRole: 'FACULTY',
+  });
+  assert(
+    routeAnalytics.queryCategory === 'CAMPUS_ANALYTICS' && routeAnalytics.actionRecommendation?.type === 'DOCUMENT_VIEW',
+    `Router classified analytical query to CAMPUS_ANALYTICS with link to faculty analytics`
+  );
+
+  const routeRAG = await processCopilotQuery({
+    query: 'What are the examination hall conduct rules?',
+    userRole: 'STUDENT',
+  });
+  assert(
+    routeRAG.queryCategory === 'UNIVERSITY_POLICY_RAG' && Boolean(routeRAG.sources && routeRAG.sources.length > 0),
+    `Router classified policy query to UNIVERSITY_POLICY_RAG with verified sources`
   );
 
   console.log(`\n========================================`);

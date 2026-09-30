@@ -25,7 +25,36 @@ type IntentCategory = 'UNIVERSITY_POLICY_RAG' | 'STUDENT_ACADEMIC' | 'COMPLAINT_
 function classifyIntentFallback(query: string): IntentCategory {
   const q = query.toLowerCase().trim();
 
-  // Academic personal data
+  // 1. Casual greeting / general inquiries
+  if (
+    q.startsWith('hi') ||
+    q.startsWith('hello') ||
+    q.startsWith('hey') ||
+    q.includes('who are you') ||
+    q.includes('what can you do') ||
+    q.includes('good morning') ||
+    q.includes('good afternoon') ||
+    q.includes('good evening') ||
+    q === 'help'
+  ) {
+    return 'GENERAL';
+  }
+
+  // 2. Campus Analytics (aggregate university trends & department performance)
+  if (
+    q.includes('which department has') ||
+    q.includes('most complaints') ||
+    q.includes('unresolved complaints') ||
+    q.includes('complaint trends') ||
+    q.includes('monthly complaint summary') ||
+    q.includes('campus analytics') ||
+    q.includes('show attendance trends') ||
+    q.includes('average resolution')
+  ) {
+    return 'CAMPUS_ANALYTICS';
+  }
+
+  // 3. Academic personal data
   if (
     q.includes('my attendance') ||
     q.includes('how is my attendance') ||
@@ -36,40 +65,33 @@ function classifyIntentFallback(query: string): IntentCategory {
     q.includes('focus on academically') ||
     q.includes('my performance') ||
     q.includes('learning gap') ||
-    q.includes('my subjects')
+    q.includes('my subjects') ||
+    q.includes('how am i doing')
   ) {
     return 'STUDENT_ACADEMIC';
   }
 
-  // Grievance action
+  // 4. Grievance action (reporting specific facility defects to file a ticket)
   if (
     (q.includes('not working') ||
       q.includes('broken') ||
-      q.includes('complaint') ||
-      q.includes('grievance') ||
+      q.includes('file a complaint') ||
+      q.includes('lodge a complaint') ||
+      q.includes('register a grievance') ||
       q.includes('water leak') ||
       q.includes('no internet') ||
       q.includes('wifi issue') ||
       q.includes('flickering') ||
-      q.includes('delay in bus')) &&
+      q.includes('delay in bus') ||
+      q.includes('blackout') ||
+      q.includes('damaged') ||
+      q.includes('malfunction')) &&
     !q.includes('policy') &&
     !q.includes('sla') &&
-    !q.includes('how do i submit')
+    !q.includes('how do i submit') &&
+    !q.includes('what is the procedure')
   ) {
     return 'COMPLAINT_ACTION';
-  }
-
-  // Campus Analytics
-  if (
-    q.includes('which department has') ||
-    q.includes('most complaints') ||
-    q.includes('unresolved complaints') ||
-    q.includes('complaint trends') ||
-    q.includes('monthly complaint summary') ||
-    q.includes('campus analytics') ||
-    q.includes('show attendance trends')
-  ) {
-    return 'CAMPUS_ANALYTICS';
   }
 
   return 'UNIVERSITY_POLICY_RAG';
@@ -204,7 +226,15 @@ export async function processCopilotQuery(params: {
     };
   }
 
-  // 4. Default: Grounded University RAG
+  // 4. General Conversational / Greetings Intent
+  if (intent === 'GENERAL') {
+    return {
+      answer: `Hello! I am **CampusIQ Copilot**, your official AI university assistant.\n\nHere is how I can assist you across campus:\n- 📋 **University Policies:** *"What is the minimum attendance requirement?"* or *"What is the hostel curfew timing?"*\n- 🎓 **Academic Guidance:** *"How is my attendance?"* or *"What should I focus on academically?"*\n- 🛠️ **Grievance Triage:** *"Wi-Fi is not working in Hostel Block B"* (I will pre-classify and draft a ticket for you!)\n- 📊 **Campus Data:** *"Which department has the most unresolved complaints?"*\n\nWhat would you like to explore today?`,
+      queryCategory: 'GENERAL',
+    };
+  }
+
+  // 5. Default: Grounded University RAG
   const ragResult = await searchKnowledgeBase(query);
 
   return {

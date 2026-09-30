@@ -42,18 +42,29 @@ export default function AdminDashboard() {
     return <div className="p-8 text-center text-xs text-slate-400">Loading campus administration metrics...</div>;
   }
 
+  const isLiveDataUnavailable = !analytics?.overview;
   const overview = analytics?.overview || {
-    totalStudents: 1,
-    totalFaculty: 1,
-    totalComplaints: 6,
-    openComplaints: 3,
-    criticalComplaints: 1,
-    avgAttendance: 87.5,
-    avgResolutionHours: 28.4,
+    totalStudents: 0,
+    totalFaculty: 0,
+    totalComplaints: 0,
+    openComplaints: 0,
+    criticalComplaints: 0,
+    avgAttendance: 0,
+    avgResolutionHours: 0,
+    totalDocuments: 0,
+    totalChunks: 0,
   };
 
   return (
     <div className="space-y-6">
+      {/* Live Data Unavailable Notice */}
+      {isLiveDataUnavailable && (
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center space-x-2">
+          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>Live telemetry is currently unavailable. Displaying neutral zero-state values without synthetic estimation.</span>
+        </div>
+      )}
+
       {/* Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-900 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -126,10 +137,10 @@ export default function AdminDashboard() {
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs">
           <div className="text-xs text-slate-500 font-medium">Knowledge Assets</div>
           <div className="flex items-baseline space-x-2 mt-1">
-            <span className="text-2xl font-bold text-slate-900">4 Policies</span>
+            <span className="text-2xl font-bold text-slate-900">{overview.totalDocuments || 0} Policies</span>
             <span className="text-[11px] text-indigo-600 font-semibold">RAG Active</span>
           </div>
-          <div className="text-[11px] text-slate-400 mt-2">10 Semantic Chunks</div>
+          <div className="text-[11px] text-slate-400 mt-2">{overview.totalChunks || 0} Semantic Chunks</div>
         </div>
       </div>
 

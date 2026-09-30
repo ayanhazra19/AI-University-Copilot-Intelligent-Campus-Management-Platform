@@ -22,6 +22,8 @@ export interface CampusOverviewMetrics {
   avgResolutionHours: number;
   totalCourses: number;
   totalNotices: number;
+  totalDocuments: number;
+  totalChunks: number;
 }
 
 export async function getCampusAnalyticsOverview() {
@@ -34,6 +36,8 @@ export async function getCampusAnalyticsOverview() {
     courses,
     attendances,
     notices,
+    totalDocuments,
+    totalChunks,
   ] = await Promise.all([
     prisma.studentProfile.count(),
     prisma.facultyProfile.count(),
@@ -43,6 +47,8 @@ export async function getCampusAnalyticsOverview() {
     prisma.course.findMany(),
     prisma.attendance.findMany({ include: { course: true } }),
     prisma.notice.count(),
+    prisma.knowledgeDocument.count(),
+    prisma.documentChunk.count(),
   ]);
 
   const resolvedComplaints = complaints.filter(
@@ -113,6 +119,8 @@ export async function getCampusAnalyticsOverview() {
       avgResolutionHours,
       totalCourses: courses.length,
       totalNotices: notices,
+      totalDocuments,
+      totalChunks,
     },
     departmentDistribution: Object.entries(departmentDistribution).map(([name, count]) => ({
       name,

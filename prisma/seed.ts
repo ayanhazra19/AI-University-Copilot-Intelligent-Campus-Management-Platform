@@ -333,6 +333,8 @@ async function main() {
       aiPriorityReason: 'Medium priority: Disrupts lecture presentations but alternative whiteboards and backup portable projector were temporarily available.',
       assignedTo: 'Facilities AV Team',
       resolutionNote: 'HDMI wall plate replaced and ceiling projector power supply recalibrated on Feb 22. Tested successfully with faculty laptop.',
+      createdAt: new Date(Date.now() - 5 * 24 * 3600 * 1000), // 5 days ago
+      updatedAt: new Date(Date.now() - (5 * 24 - 24) * 3600 * 1000), // Resolved in 24 hours
       statusHistory: {
         create: [
           { fromStatus: 'NONE', toStatus: 'SUBMITTED', changedBy: 'Aarav Sharma (Student)', note: 'Initial submission' },
@@ -359,10 +361,11 @@ async function main() {
       aiSummary: 'Student identifies a 10-point clerical discrepancy between physical paper and portal entry for CS202 Midterm.',
       aiPriorityReason: 'Medium priority: Requires verification of faculty grade ledger before final grade freeze.',
       assignedTo: 'Academic Registrar Desk',
+      createdAt: new Date(Date.now() - 2 * 24 * 3600 * 1000),
       statusHistory: {
         create: [
           { fromStatus: 'NONE', toStatus: 'SUBMITTED', changedBy: 'Aarav Sharma (Student)', note: 'Submitted with scanned image of verified marks slip' },
-          { fromStatus: 'SUBMITTED', toStatus: 'UNDER_REVIEW', changedBy: 'Dr. Sunita Rao (Faculty)', note: 'Retrieving original grade submission sheet for confirmation.' },
+          { fromStatus: 'SUBMITTED', toStatus: 'UNDER_REVIEW', changedBy: 'Dr. Priya Nair (Faculty)', note: 'Retrieving original grade submission sheet for confirmation.' },
         ],
       },
     },
@@ -385,6 +388,8 @@ async function main() {
       aiSummary: 'Library reading room water dispenser cooling system not functional.',
       aiPriorityReason: 'Low priority: Water supply is hygienic and functional; cooling compressor needs routine service.',
       resolutionNote: 'Coolant refill completed by vendor on March 18.',
+      createdAt: new Date(Date.now() - 4 * 24 * 3600 * 1000), // 4 days ago
+      updatedAt: new Date(Date.now() - (4 * 24 - 32) * 3600 * 1000), // Resolved in 32 hours
     },
   });
 
@@ -403,6 +408,7 @@ async function main() {
       location: 'North Campus Bus Bay',
       aiSummary: 'Frequent morning delay on Bus Route 4 impacting student 8:30 AM laboratory attendance.',
       aiPriorityReason: 'High priority: Recurring timing failure directly induces academic attendance penalties for commuters.',
+      createdAt: new Date(Date.now() - 1 * 24 * 3600 * 1000),
     },
   });
 
@@ -422,6 +428,71 @@ async function main() {
       aiSummary: 'Total electrical outage in 24/7 study zone during rainstorm with safety and accessibility concerns.',
       aiPriorityReason: 'Critical priority: Electrical tripping in an enclosed basement area poses safety hazard and immediate disruption.',
       assignedTo: 'Emergency Electrical Response Team',
+      createdAt: new Date(Date.now() - 4 * 3600 * 1000), // 4 hours ago
+    },
+  });
+
+  // Additional resolved complaints for believable live DB SLA analytics
+  await prisma.complaint.create({
+    data: {
+      ticketNumber: 'CIQ-7880',
+      studentId: studentProfile.id,
+      studentName: 'Kabir Verma',
+      title: 'Hostel Block A hot water geyser pilot light failure',
+      description: 'The geyser unit in 2nd floor common washroom would not ignite in the morning.',
+      category: 'Hostel',
+      subcategory: 'Amenities',
+      priority: 'MEDIUM',
+      department: 'Hostel Administration',
+      status: 'RESOLVED',
+      location: 'Hostel Block A, 2nd Floor Washroom',
+      aiSummary: 'Hostel Block A water geyser pilot light ignition issue resolved by hostel plumbing maintenance.',
+      aiPriorityReason: 'Medium priority: Affects morning routine for hostel residents.',
+      resolutionNote: 'Pilot thermocouple replaced and tested.',
+      createdAt: new Date(Date.now() - 6 * 24 * 3600 * 1000),
+      updatedAt: new Date(Date.now() - (6 * 24 - 18) * 3600 * 1000), // Resolved in 18 hours
+    },
+  });
+
+  await prisma.complaint.create({
+    data: {
+      ticketNumber: 'CIQ-7822',
+      studentId: studentProfile.id,
+      studentName: 'Ananya Roy',
+      title: 'LMS portal session timeout during quiz submission',
+      description: 'Session invalidated mid-submission during Computer Networks formative quiz.',
+      category: 'IT / Internet',
+      subcategory: 'LMS Software',
+      priority: 'HIGH',
+      department: 'IT Services',
+      status: 'RESOLVED',
+      location: 'Online LMS Portal',
+      aiSummary: 'LMS session token timeout error investigated and session persistence extended.',
+      aiPriorityReason: 'High priority: Directly prevented student assessment submission.',
+      resolutionNote: 'Redis session TTL extended from 15m to 45m. Quiz attempt restored for student.',
+      createdAt: new Date(Date.now() - 3 * 24 * 3600 * 1000),
+      updatedAt: new Date(Date.now() - (3 * 24 - 10) * 3600 * 1000), // Resolved in 10 hours
+    },
+  });
+
+  await prisma.complaint.create({
+    data: {
+      ticketNumber: 'CIQ-7791',
+      studentId: studentProfile.id,
+      studentName: 'Vikram Joshi',
+      title: 'Central Library RFID self-checkout kiosk scanner misalignment',
+      description: 'Kiosk #2 fails to detect barcode on textbook returns.',
+      category: 'Library',
+      subcategory: 'Equipment',
+      priority: 'LOW',
+      department: 'Central Library',
+      status: 'RESOLVED',
+      location: 'Central Library, Ground Floor Kiosk Bay',
+      aiSummary: 'Library RFID checkout scanner optical sensor recalibrated.',
+      aiPriorityReason: 'Low priority: Alternative kiosks 1 and 3 remained operational.',
+      resolutionNote: 'Optical sensor cleaned and barcode camera recalibrated.',
+      createdAt: new Date(Date.now() - 7 * 24 * 3600 * 1000),
+      updatedAt: new Date(Date.now() - (7 * 24 - 20) * 3600 * 1000), // Resolved in 20 hours
     },
   });
 
