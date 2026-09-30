@@ -131,7 +131,13 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
           .catch(() => {});
       }
 
-      const cosineSim = Math.max(0, cosineSimilarity(queryVector, chunkVector));
+      const isDenseCloud = queryVector.length > 512;
+      const rawCosine = Math.max(0, cosineSimilarity(queryVector, chunkVector));
+      // Calibrate dense vector baseline floor (~0.40) so unrelated queries scale to ~0.0
+      const effectiveCosine = isDenseCloud
+        ? Math.max(0, (rawCosine - 0.40) / 0.60)
+        : rawCosine;
+
       const normalizedKeyword = calculateKeywordScore(
         { content: c.content, keywords: c.keywords, title: c.document.title },
         queryTokens,
@@ -139,7 +145,7 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
       );
 
       // Weighted hybrid relevance (scale 0..100)
-      const hybridRaw = 0.50 * cosineSim + 0.50 * normalizedKeyword;
+      const hybridRaw = 0.50 * effectiveCosine + 0.50 * normalizedKeyword;
       const relevanceScore = Math.min(99, Math.round(hybridRaw * 100));
 
       return {
@@ -150,15 +156,19 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
         pageNumber: c.pageNumber,
         content: c.content,
         relevanceScore,
-        rawCosine: cosineSim,
+        rawCosine,
+        effectiveCosine,
         rawKeyword: normalizedKeyword,
       };
     })
   );
 
   // Filter positive relevance and sort descending
+  const isDense = queryVector.length > 512;
+  const MIN_RELEVANCE = isDense ? 22 : 18;
+
   let topCandidates = scoredList
-    .filter((c) => c.relevanceScore >= 20 || c.rawKeyword >= 0.20)
+    .filter((c) => c.relevanceScore >= MIN_RELEVANCE || c.rawKeyword >= 0.20)
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, Math.max(maxResults, 5));
 
@@ -191,12 +201,28 @@ export async function retrieveChunks(query: string, maxResults: number = 3): Pro
 
   const finalChunks = topCandidates.slice(0, maxResults);
   const top = finalChunks[0];
-  const foundInKnowledgeBase =
+
+  // Robust Evidence Gate:
+  // Requires either:
+  // 1. Keyword grounding (matched terms in keywords/title/content) with positive similarity
+  // 2. High calibrated semantic relevance (relevanceScore >= 30 or effectiveCosine >= 0.40)
+  const isGrounded =
     finalChunks.length > 0 &&
-    (top.relevanceScore >= 28 || (top.rawKeyword >= 0.25 && top.rawCosine >= 0.18));
+    Boolean(
+      (top.rawKeyword >= 0.18 && top.effectiveCosine >= 0.08) ||
+      top.relevanceScore >= 30 ||
+      (top.rawKeyword >= 0.10 && top.relevanceScore >= 22)
+    );
+
+  if (!isGrounded) {
+    return {
+      chunks: [],
+      foundInKnowledgeBase: false,
+    };
+  }
 
   return {
     chunks: finalChunks,
-    foundInKnowledgeBase,
+    foundInKnowledgeBase: true,
   };
 }

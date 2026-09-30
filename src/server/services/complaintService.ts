@@ -202,15 +202,29 @@ export async function classifyComplaint(input: {
   }
 }
 
+export const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  SUBMITTED: ['UNDER_REVIEW', 'IN_PROGRESS'],
+  UNDER_REVIEW: ['IN_PROGRESS', 'RESOLVED'],
+  IN_PROGRESS: ['RESOLVED', 'UNDER_REVIEW'],
+  RESOLVED: ['CLOSED', 'IN_PROGRESS'],
+  CLOSED: ['IN_PROGRESS'],
+};
+
 export async function listComplaints(filters: {
-  department?: string | null;
+  department?: string | string[] | null;
   status?: string | null;
   priority?: string | null;
   category?: string | null;
   studentId?: string | null;
 }) {
   const where: any = {};
-  if (filters.department && filters.department !== 'ALL') where.department = filters.department;
+  if (filters.department && filters.department !== 'ALL') {
+    if (Array.isArray(filters.department)) {
+      where.department = { in: filters.department };
+    } else {
+      where.department = filters.department;
+    }
+  }
   if (filters.status && filters.status !== 'ALL') where.status = filters.status;
   if (filters.priority && filters.priority !== 'ALL') where.priority = filters.priority;
   if (filters.category && filters.category !== 'ALL') where.category = filters.category;
@@ -333,15 +347,60 @@ export async function updateComplaintStatus(
     assignedTo?: string;
     resolutionNote?: string;
   },
-  user: { id: string; name: string; role: string }
+  user: { id: string; name: string; role: string; department?: string | null }
 ) {
+  // 1. Role enforcement: Students cannot modify complaint status
+  if (user.role === 'STUDENT') {
+    const error: any = new Error('Forbidden: Students are not authorized to modify complaint status');
+    error.statusCode = 403;
+    throw error;
+  }
+
   const existingComplaint = await prisma.complaint.findUnique({
     where: { id },
     include: { student: { include: { user: true } } },
   });
 
   if (!existingComplaint) {
-    throw new Error('Complaint not found');
+    const error: any = new Error('Complaint not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // 2. Department & Scope enforcement for Faculty
+  if (user.role === 'FACULTY') {
+    const allowedDepartments = ['Academic Affairs', 'Examination Cell'];
+    if (user.department) allowedDepartments.push(user.department);
+
+    const isDepartmentAuthorized = allowedDepartments.includes(existingComplaint.department);
+    const isAssigned = existingComplaint.assignedTo === user.name;
+
+    if (!isDepartmentAuthorized && !isAssigned) {
+      const error: any = new Error(
+        `Forbidden: Faculty members may only manage grievances within their assigned academic scope (${allowedDepartments.join(', ')})`
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+  } else if (user.role !== 'ADMIN') {
+    const error: any = new Error('Forbidden: Insufficient privileges');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // 3. State machine validation
+  const currentStatus = existingComplaint.status;
+  const targetStatus = updateData.status;
+
+  if (currentStatus !== targetStatus) {
+    const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus] || [];
+    if (!allowedTransitions.includes(targetStatus)) {
+      const error: any = new Error(
+        `Invalid status transition from "${currentStatus}" to "${targetStatus}". Allowed next stages: ${allowedTransitions.join(', ') || 'None'}`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
   }
 
   const updated = await prisma.complaint.update({

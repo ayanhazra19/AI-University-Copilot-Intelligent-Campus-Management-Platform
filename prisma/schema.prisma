@@ -77,6 +77,8 @@ model Attendance {
   attendedClasses Int            @default(35)
   percentage      Float          @default(87.5)
   lastUpdated     DateTime       @default(now())
+
+  @@index([studentId, courseId])
 }
 
 model Assessment {
@@ -148,6 +150,8 @@ model Complaint {
   updatedAt        DateTime                @updatedAt
 
   statusHistory    ComplaintStatusHistory[]
+
+  @@index([department, status])
 }
 
 model ComplaintStatusHistory {

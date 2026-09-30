@@ -4,6 +4,11 @@ import { listComplaints, createComplaint } from '@/server/services/complaintServ
 
 export async function GET(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const department = searchParams.get('department');
     const status = searchParams.get('status');
@@ -11,24 +16,62 @@ export async function GET(request: Request) {
     const category = searchParams.get('category');
     const studentOnly = searchParams.get('studentOnly');
 
-    const user = await getCurrentUser();
-    let studentId: string | undefined = undefined;
-
-    if (user?.role === 'STUDENT' || studentOnly === 'true') {
-      if (user?.student?.id) {
-        studentId = user.student.id;
+    // 1. Student RBAC: strictly restricted to their own submitted complaints
+    if (user.role === 'STUDENT') {
+      const studentId = user.student?.id;
+      if (!studentId) {
+        return NextResponse.json({ complaints: [], categories: [] });
       }
+
+      const result = await listComplaints({
+        status,
+        priority,
+        category,
+        studentId,
+      });
+
+      return NextResponse.json(result);
     }
 
-    const result = await listComplaints({
-      department,
-      status,
-      priority,
-      category,
-      studentId,
-    });
+    // 2. Faculty RBAC: restricted to academic / course / departmental scope
+    if (user.role === 'FACULTY') {
+      const allowedDepartments = ['Academic Affairs', 'Examination Cell'];
+      if (user.department) allowedDepartments.push(user.department);
 
-    return NextResponse.json(result);
+      let targetDepartment: string | string[] = allowedDepartments;
+      if (department && department !== 'ALL') {
+        if (allowedDepartments.includes(department)) {
+          targetDepartment = department;
+        } else {
+          // Deny access to departments outside faculty purview
+          return NextResponse.json({ complaints: [], categories: [] });
+        }
+      }
+
+      const result = await listComplaints({
+        department: targetDepartment,
+        status,
+        priority,
+        category,
+      });
+
+      return NextResponse.json(result);
+    }
+
+    // 3. Admin RBAC: campus-wide complaint access
+    if (user.role === 'ADMIN') {
+      const result = await listComplaints({
+        department,
+        status,
+        priority,
+        category,
+        studentId: studentOnly === 'true' && user.student?.id ? user.student.id : undefined,
+      });
+
+      return NextResponse.json(result);
+    }
+
+    return NextResponse.json({ error: 'Forbidden: Unrecognized role' }, { status: 403 });
   } catch (error) {
     console.error('Complaints GET error:', error);
     return NextResponse.json({ error: 'Failed to retrieve complaints' }, { status: 500 });

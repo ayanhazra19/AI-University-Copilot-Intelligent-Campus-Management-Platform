@@ -43,6 +43,31 @@ export default function AdminComplaintsPage() {
 
   useEffect(() => {
     loadComplaints();
+
+    // Live refresh: periodic background poll and revalidation on tab focus
+    const interval = setInterval(() => {
+      fetch(`/api/complaints?department=${filterDept}&status=${filterStatus}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.complaints) setComplaints(data.complaints);
+        })
+        .catch(() => {});
+    }, 5000);
+
+    const onFocus = () => {
+      fetch(`/api/complaints?department=${filterDept}&status=${filterStatus}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.complaints) setComplaints(data.complaints);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [filterDept, filterStatus]);
 
   const handleUpdateStatus = async (e: React.FormEvent) => {
