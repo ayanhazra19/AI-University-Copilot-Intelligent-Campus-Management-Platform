@@ -4,6 +4,11 @@ import { analyzeStudentAcademics } from '../src/lib/ai/academicEngine';
 import { askCampusAnalyticsAI } from '../src/lib/ai/analyticsEngine';
 import { processCopilotQuery } from '../src/lib/ai/router';
 import { prisma } from '../src/lib/prisma';
+import { updateComplaintStatus, listComplaints } from '../src/server/services/complaintService';
+import { getJwtSecret } from '../src/lib/auth';
+import { GET as getComplaintsRoute } from '../src/app/api/complaints/route';
+import { GET as getKnowledgeRoute } from '../src/app/api/knowledge/route';
+import { POST as postCopilotRoute } from '../src/app/api/copilot/chat/route';
 
 async function runTestSuite() {
   console.log('🧪 Starting CampusIQ Automated Verification Test Suite...\n');
@@ -173,6 +178,137 @@ async function runTestSuite() {
   assert(
     routeRAG.queryCategory === 'UNIVERSITY_POLICY_RAG' && Boolean(routeRAG.sources && routeRAG.sources.length > 0),
     `Router classified policy query to UNIVERSITY_POLICY_RAG with verified sources`
+  );
+
+  // 7. Day 2 Security & Authorization Regression Suite
+  console.log('\n🔒 Running Day 2 Security & Authorization Regression Suite...');
+
+  // A. Unauthenticated Complaint Retrieval -> 401
+  const unauthRes = await getComplaintsRoute(new Request('http://localhost:3000/api/complaints'));
+  assert(
+    unauthRes.status === 401,
+    `Unauthenticated complaint GET request rejected with HTTP 401`
+  );
+
+  // B. Student Object Isolation (can only list own complaints)
+  if (student) {
+    const studentList = await listComplaints({ studentId: student.id });
+    const allMatchStudent = studentList.complaints.every((c) => c.studentId === student.id);
+    assert(
+      allMatchStudent && studentList.complaints.length > 0,
+      `Authenticated student complaint access strictly isolated to student's own records`
+    );
+  }
+
+  // C. Student cannot modify complaint status -> 403 Forbidden
+  const sampleTicket = await prisma.complaint.findFirst();
+  if (sampleTicket && student) {
+    let studentBlocked = false;
+    try {
+      await updateComplaintStatus(
+        sampleTicket.id,
+        { status: 'RESOLVED' },
+        { id: student.userId, name: student.user.name, role: 'STUDENT' }
+      );
+    } catch (e: any) {
+      if (e.statusCode === 403) studentBlocked = true;
+    }
+    assert(studentBlocked, `Student prohibited from mutating complaint status (HTTP 403 Forbidden)`);
+  }
+
+  // D. Faculty unauthorized status update -> 403 Forbidden
+  const facultyUser = await prisma.user.findFirst({ where: { role: 'FACULTY' } });
+  const hostelTicket = await prisma.complaint.findFirst({ where: { department: 'Estate & Facilities' } });
+  if (facultyUser && hostelTicket) {
+    let facultyBlocked = false;
+    try {
+      await updateComplaintStatus(
+        hostelTicket.id,
+        { status: 'RESOLVED' },
+        { id: facultyUser.id, name: facultyUser.name, role: 'FACULTY', department: 'Computer Science & Engineering' }
+      );
+    } catch (e: any) {
+      if (e.statusCode === 403) facultyBlocked = true;
+    }
+    assert(facultyBlocked, `Faculty prohibited from modifying complaints outside academic scope (HTTP 403)`);
+  }
+
+  // E. Authorized admin status update -> Success
+  const adminUser = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+  const triageTicket = await prisma.complaint.findFirst({ where: { status: 'SUBMITTED' } });
+  if (adminUser && triageTicket) {
+    const updated = await updateComplaintStatus(
+      triageTicket.id,
+      { status: 'UNDER_REVIEW', note: 'Admin verified and initiated investigation' },
+      { id: adminUser.id, name: adminUser.name, role: 'ADMIN' }
+    );
+    assert(
+      updated.status === 'UNDER_REVIEW',
+      `Authorized admin successfully progressed complaint from SUBMITTED to UNDER_REVIEW`
+    );
+  }
+
+  // F. Invalid state machine transition -> 400 Bad Request
+  if (adminUser && triageTicket) {
+    let invalidJumpBlocked = false;
+    try {
+      // Re-fetch current status (which is now UNDER_REVIEW)
+      // Attempt invalid jump from UNDER_REVIEW to CLOSED (must go to IN_PROGRESS or RESOLVED first)
+      await updateComplaintStatus(
+        triageTicket.id,
+        { status: 'CLOSED' },
+        { id: adminUser.id, name: adminUser.name, role: 'ADMIN' }
+      );
+    } catch (e: any) {
+      if (e.statusCode === 400) invalidJumpBlocked = true;
+    }
+    assert(
+      invalidJumpBlocked,
+      `State machine prevents arbitrary state jumps (UNDER_REVIEW -> CLOSED blocked with HTTP 400)`
+    );
+  }
+
+  // G. Missing production JWT_SECRET -> Fatal startup failure
+  let jwtFailureCaught = false;
+  const originalEnv = process.env.NODE_ENV;
+  const originalSecret = process.env.JWT_SECRET;
+  try {
+    (process.env as any).NODE_ENV = 'production';
+    delete process.env.JWT_SECRET;
+    getJwtSecret();
+  } catch (e: any) {
+    if (e.message.includes('FATAL SECURITY ERROR')) jwtFailureCaught = true;
+  } finally {
+    (process.env as any).NODE_ENV = originalEnv;
+    if (originalSecret) process.env.JWT_SECRET = originalSecret;
+  }
+  assert(jwtFailureCaught, `Missing JWT_SECRET in production halts application with fatal security error`);
+
+  // H. RAG Missing Knowledge -> Clear Insufficient Evidence
+  const ragMissingKnowledge = await searchKnowledgeBase('Antigravity time dilation reactor shutdown protocol');
+  assert(
+    !ragMissingKnowledge.foundInKnowledgeBase && ragMissingKnowledge.sources.length === 0,
+    `RAG safely returns insufficient evidence for absent knowledge without hallucinating`
+  );
+
+  // I. Unauthenticated Knowledge Base GET -> 401
+  const unauthKnowledgeRes = await getKnowledgeRoute();
+  assert(
+    unauthKnowledgeRes.status === 401,
+    `Unauthenticated knowledge base GET request rejected with HTTP 401`
+  );
+
+  // J. Unauthenticated Copilot Chat POST -> 401
+  const unauthCopilotRes = await postCopilotRoute(
+    new Request('http://localhost:3000/api/copilot/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: 'What is the attendance policy?' }),
+    })
+  );
+  assert(
+    unauthCopilotRes.status === 401,
+    `Unauthenticated copilot chat POST request rejected with HTTP 401`
   );
 
   console.log(`\n========================================`);

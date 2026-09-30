@@ -8,6 +8,11 @@ import {
 
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' }, { status: 401 });
+    }
+
     const documents = await listKnowledgeDocuments();
     return NextResponse.json({ documents });
   } catch (error) {

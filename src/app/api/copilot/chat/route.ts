@@ -11,8 +11,12 @@ export async function POST(request: Request) {
     }
 
     const user = await getCurrentUser();
-    const userRole = user?.role || 'STUDENT';
-    const studentProfileId = user?.student?.id;
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' }, { status: 401 });
+    }
+
+    const userRole = user.role;
+    const studentProfileId = user.student?.id;
 
     const result = await processCopilotQuery({
       query,
