@@ -629,6 +629,66 @@ async function main() {
     },
   });
 
+  const doc5 = await prisma.knowledgeDocument.create({
+    data: {
+      title: 'Central Library Usage Guidelines & Digital Resource Policy',
+      fileName: 'Central_Library_Regulations_2025.pdf',
+      fileType: 'PDF',
+      department: 'Central Library',
+      category: 'Library',
+      fileSize: 310000,
+      processingStatus: 'PROCESSED',
+      chunkCount: 2,
+      summary: 'Borrowing allowances, overdue fines, digital journal access via IEEE/ACM, silent study pods, and RFID locker usage.',
+      chunks: {
+        create: await prepareChunks('Central Library Usage Guidelines & Digital Resource Policy', [
+          {
+            chunkIndex: 0,
+            pageNumber: 2,
+            keywords: 'library borrowing, book limit, loan period, renewal, overdue fine',
+            content: 'Section 2: Book Borrowing Privileges & Fines\nUndergraduate students may borrow up to 4 books simultaneously for a loan period of 14 calendar days. Postgraduate students may borrow up to 6 books for 21 calendar days. Renewals can be completed online via CampusIQ twice unless a hold has been placed by another student. Overdue fines accrue at $0.50 (INR 10) per day per volume.',
+          },
+          {
+            chunkIndex: 1,
+            pageNumber: 4,
+            keywords: 'digital library, IEEE Xplore, ACM digital library, remote access, VPN',
+            content: 'Section 4: Remote Access to Research Repositories\nAll registered students and faculty have 24/7 authenticated remote access to IEEE Xplore, ScienceDirect, ACM Digital Library, and Springer journals. Access is automatically provisioned using university email single sign-on (SSO) credentials without requiring an on-campus VPN connection.',
+          },
+        ]),
+      },
+    },
+  });
+
+  const doc6 = await prisma.knowledgeDocument.create({
+    data: {
+      title: 'Campus IT Acceptable Use, Wi-Fi & Cyber Safety Policy',
+      fileName: 'Campus_IT_Acceptable_Use_Policy.pdf',
+      fileType: 'PDF',
+      department: 'IT Services',
+      category: 'IT / Internet',
+      fileSize: 350000,
+      processingStatus: 'PROCESSED',
+      chunkCount: 2,
+      summary: 'Guidelines on campus Wi-Fi access, bandwidth allocation, prohibited activities, and incident reporting.',
+      chunks: {
+        create: await prepareChunks('Campus IT Acceptable Use, Wi-Fi & Cyber Safety Policy', [
+          {
+            chunkIndex: 0,
+            pageNumber: 1,
+            keywords: 'wifi, bandwidth, quota, devices, mac address, student login',
+            content: 'Section 1: Campus Network Access & Quotas\nEach student is allocated a high-speed data quota of 15 GB per day across campus access points. A maximum of 2 concurrent devices (e.g. laptop and smartphone) may be authenticated per student ID. Network access is automatically reset at midnight. Bandwidth throttling is applied only after daily limits are exceeded.',
+          },
+          {
+            chunkIndex: 1,
+            pageNumber: 3,
+            keywords: 'it security, torrents, crypto mining, cyber safety, disciplinary',
+            content: 'Section 3: Prohibited Network Activities\nPeer-to-peer file sharing (BitTorrent), cryptocurrency mining, unauthorized port scanning, and host penetration testing are strictly prohibited on the university network. Violations trigger automatic MAC address quarantine and disciplinary referral to the Cyber Safety Committee.',
+          },
+        ]),
+      },
+    },
+  });
+
   // 13. University Notices
   await prisma.notice.createMany({
     data: [

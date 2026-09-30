@@ -187,34 +187,72 @@ export async function askCampusAnalytics(question: string): Promise<NLAnalyticsR
     value: Number((val.totalPct / val.count).toFixed(1)),
   }));
 
+  // Select relevant database-computed chart dataset based on question topic
+  const q = question.toLowerCase();
+  let selectedDbChartData: Array<{ label: string; value: number; secondary?: number }>;
+  let defaultChartType: 'bar' | 'pie' | 'line';
+  let defaultTopic: string;
+
+  if (q.includes('attendance') || q.includes('student') || q.includes('performance') || q.includes('gpa')) {
+    selectedDbChartData = realCourseAttendance;
+    defaultChartType = 'bar';
+    defaultTopic = 'course_attendance';
+  } else if (q.includes('category') || q.includes('categories') || q.includes('type') || q.includes('common')) {
+    selectedDbChartData = Object.entries(catCount)
+      .map(([cat, count]) => ({ label: cat, value: count }))
+      .sort((a, b) => b.value - a.value);
+    defaultChartType = 'pie';
+    defaultTopic = 'complaint_categories';
+  } else {
+    selectedDbChartData = Object.entries(deptCount)
+      .map(([dept, counts]) => ({
+        label: dept,
+        value: counts.unresolved,
+        secondary: counts.total,
+      }))
+      .sort((a, b) => b.value - a.value);
+    defaultChartType = 'bar';
+    defaultTopic = 'unresolved_complaints_by_department';
+  }
+
   // If Gemini is available, feed real computed dataset to LLM for natural-language synthesis
+  // Rule enforced: Numbers come strictly from the DB; LLM only narrates and selects chartType
   if (isGeminiAvailable()) {
     try {
-      const dataPayload = {
-        question,
-        totalComplaints,
-        resolvedCount,
-        openCount,
-        clearanceRatePct,
-        departments: deptCount,
-        categories: catCount,
-        courseAttendance: realCourseAttendance,
-      };
+      const prompt = `QUESTION: "${question}"
+TOPIC: ${defaultTopic}
+VERIFIED DATABASE CHART DATA (PRESERVE EXACT NUMBERS):
+${JSON.stringify(selectedDbChartData, null, 2)}
 
-      const prompt = `QUESTION: "${question}"\n\nREAL VERIFIED DATASET:\n${JSON.stringify(dataPayload, null, 2)}`;
-      const result = await generateJSON<NLAnalyticsResult>({
+OVERALL AGGREGATED METRICS:
+Total Complaints: ${totalComplaints}
+Open Complaints: ${openCount}
+Resolved Complaints: ${resolvedCount}
+Clearance Rate: ${clearanceRatePct}%
+
+Generate an executive synthesis answering the question, pick the best chartType ('bar' | 'pie' | 'line'), and list 3 strategic insights derived strictly from these numbers.`;
+
+      const result = await generateJSON<{
+        summary: string;
+        chartType: 'bar' | 'pie' | 'line';
+        insights: string[];
+      }>({
         prompt,
         systemInstruction: CAMPUS_ANALYTICS_SYSTEM_INSTRUCTION,
         temperature: 0.1,
       });
 
-      if (result && result.summary && Array.isArray(result.chartData) && result.chartData.length > 0) {
+      if (result && result.summary) {
         return {
           question,
           summary: result.summary,
-          chartType: result.chartType || 'bar',
-          chartData: result.chartData,
-          insights: result.insights || [],
+          chartType: result.chartType || defaultChartType,
+          chartData: selectedDbChartData, // Strictly database numbers! Zero LLM numbers!
+          insights: Array.isArray(result.insights) && result.insights.length > 0 ? result.insights : [
+            `Verified telemetry across ${selectedDbChartData.length} tracked items.`,
+            `Campus ticket resolution rate is currently ${clearanceRatePct}%.`,
+            `Directly derived from SQLite database without synthetic inflation.`,
+          ],
         };
       }
     } catch {
@@ -223,33 +261,18 @@ export async function askCampusAnalytics(question: string): Promise<NLAnalyticsR
   }
 
   // Deterministic Offline Fallback strictly from REAL computed values
-  const q = question.toLowerCase();
-
   // 1. Department / Unresolved complaints
-  if (
-    q.includes('department') ||
-    q.includes('unresolved') ||
-    q.includes('most complaints') ||
-    q.includes('open')
-  ) {
-    const chartData = Object.entries(deptCount)
-      .map(([dept, counts]) => ({
-        label: dept,
-        value: counts.unresolved,
-        secondary: counts.total,
-      }))
-      .sort((a, b) => b.value - a.value);
-
-    const topDept = chartData[0] || { label: 'General Administration', value: 0 };
-    const totalUnresolved = chartData.reduce((sum, d) => sum + d.value, 0);
+  if (defaultTopic === 'unresolved_complaints_by_department') {
+    const topDept = selectedDbChartData[0] || { label: 'General Administration', value: 0 };
+    const totalUnresolved = selectedDbChartData.reduce((sum, d) => sum + d.value, 0);
 
     return {
       question,
-      summary: `**${topDept.label}** currently has the highest volume of active unresolved grievances (${topDept.value} open tickets), followed by **${chartData[1]?.label || 'Other Departments'}** (${chartData[1]?.value || 0} tickets). Across all university departments, there are currently **${totalUnresolved}** total unresolved tickets requiring administrative follow-up.`,
+      summary: `**${topDept.label}** currently has the highest volume of active unresolved grievances (${topDept.value} open tickets), followed by **${selectedDbChartData[1]?.label || 'Other Departments'}** (${selectedDbChartData[1]?.value || 0} tickets). Across all university departments, there are currently **${totalUnresolved}** total unresolved tickets requiring administrative follow-up.`,
       chartType: 'bar',
-      chartData,
+      chartData: selectedDbChartData,
       insights: [
-        `${topDept.label} accounts for ${Math.round((topDept.value / (totalComplaints || 1)) * 100)}% of all registered complaints.`,
+        `${topDept.label} accounts for ${Math.round((topDept.value / (totalComplaints || 1)) * 100)}% of all open grievances.`,
         `Overall platform ticket resolution rate currently stands at ${clearanceRatePct}%.`,
         `${totalUnresolved} tickets remain active across all campus units.`,
       ],
