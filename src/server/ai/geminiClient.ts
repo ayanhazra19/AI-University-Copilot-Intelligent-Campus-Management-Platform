@@ -104,8 +104,9 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
       contents: text,
     });
 
-    if (response.embedding?.values) {
-      return response.embedding.values;
+    const values = response.embeddings?.[0]?.values || (response as any).embedding?.values;
+    if (values && Array.isArray(values)) {
+      return values;
     }
     return null;
   } catch (error) {
