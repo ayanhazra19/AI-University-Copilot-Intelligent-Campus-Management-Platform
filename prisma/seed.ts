@@ -1,7 +1,20 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { createEmbedding, serializeEmbedding } from '../src/server/ai/embeddings';
 
 const prisma = new PrismaClient();
+
+async function prepareChunks(
+  docTitle: string,
+  chunks: Array<{ chunkIndex: number; pageNumber: number; keywords: string; content: string }>
+) {
+  return Promise.all(
+    chunks.map(async (c) => ({
+      ...c,
+      embeddingJson: serializeEmbedding(await createEmbedding(`${c.content} ${c.keywords} ${docTitle}`)),
+    }))
+  );
+}
 
 async function main() {
   console.log('🌱 Starting CampusIQ synthetic demo data seeding...');
@@ -425,7 +438,7 @@ async function main() {
       chunkCount: 3,
       summary: 'Comprehensive guidelines on minimum 75% attendance criteria, medical condonation allowances, detention rules, and leave application procedures.',
       chunks: {
-        create: [
+        create: await prepareChunks('University Attendance Policy & Regulations (2024-2025)', [
           {
             chunkIndex: 0,
             pageNumber: 1,
@@ -444,7 +457,7 @@ async function main() {
             keywords: 'leave application, procedure, student portal, approval, mentor',
             content: 'Section 3.2: Procedure to Apply for Academic Leave\n1. Login to the CampusIQ portal.\n2. Navigate to Academics > Leave Application.\n3. Fill in the leave dates, reason, and attach supporting documentation (medical slip or event invitation).\n4. Submit for Faculty Mentor endorsement.\n5. Upon mentor recommendation, the application is forwarded to the Head of Department (HoD) for final electronic sign-off. Processing takes 2-3 business days.',
           },
-        ],
+        ]),
       },
     },
   });
@@ -461,7 +474,7 @@ async function main() {
       chunkCount: 3,
       summary: 'Rules governing the 10-point CGPA grading system, pass criteria, re-evaluation timelines, and remedial exam schedules.',
       chunks: {
-        create: [
+        create: await prepareChunks('Academic Regulations, Grading Scheme & Examination Rules', [
           {
             chunkIndex: 0,
             pageNumber: 3,
@@ -480,7 +493,7 @@ async function main() {
             keywords: 'malpractice, exam rules, electronic devices, smart watch, suspension',
             content: 'Section 9.1: Examination Hall Conduct & Malpractice Rules\nStudents must arrive at the examination venue at least 20 minutes prior to the start time. No entry is permitted 15 minutes after examination commencement. Mobile phones, smart watches, programmable calculators, and unauthorized printed sheets are strictly banned inside examination halls. Possession of prohibited electronics results in immediate confiscation, debarment from the remaining exams, and referral to the Proctorial Board.',
           },
-        ],
+        ]),
       },
     },
   });
@@ -497,7 +510,7 @@ async function main() {
       chunkCount: 2,
       summary: 'Hostel curfew timings, night out pass protocols, visitor policies, room maintenance standards, and anti-ragging mandates.',
       chunks: {
-        create: [
+        create: await prepareChunks('Hostel Resident Code of Conduct & Facilities Manual', [
           {
             chunkIndex: 0,
             pageNumber: 2,
@@ -510,7 +523,7 @@ async function main() {
             keywords: 'complaints, hostel maintenance, plumber, electrician, internet, room change',
             content: 'Hostel Regulation 5: Room Maintenance & Grievances\nRepairs regarding electrical fittings, plumbing, Wi-Fi connectivity, or furniture defects must be logged directly into the CampusIQ Complaints module under the "Hostel" category. Routine maintenance tickets are serviced between 10:00 AM and 5:00 PM on weekdays. Emergency issues (power outage, water leaks) receive rapid priority response within 2 hours.',
           },
-        ],
+        ]),
       },
     },
   });
@@ -527,7 +540,7 @@ async function main() {
       chunkCount: 2,
       summary: 'Service level agreements (SLAs), escalation matrix, automated routing rules, and appeal procedures for all student grievances.',
       chunks: {
-        create: [
+        create: await prepareChunks('Student Grievance Redressal & Complaint Charter', [
           {
             chunkIndex: 0,
             pageNumber: 1,
@@ -540,7 +553,7 @@ async function main() {
             keywords: 'escalation, dean, ombudsman, unresolved ticket, appeal',
             content: 'Grievance Charter Section 6: Automatic Escalation Matrix\nIf a complaint remains unresolved beyond its SLA deadline, it is automatically escalated:\n- Level 1 Escalation: Department Supervisor / Senior Engineer\n- Level 2 Escalation (at +48h overdue): Campus Administrative Officer\n- Level 3 Escalation: Dean of Student Welfare & University Ombudsman for direct oversight.',
           },
-        ],
+        ]),
       },
     },
   });

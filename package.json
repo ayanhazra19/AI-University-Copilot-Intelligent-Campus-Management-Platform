@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts",
+    "ingest": "tsx scripts/ingest-documents.ts",
     "test": "tsx tests/platform.test.ts"
   },
   "prisma": {
