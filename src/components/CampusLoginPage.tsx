@@ -33,7 +33,7 @@ export function CampusLoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, disallowRole: 'ADMIN' }),
       });
 
       const data = await res.json();
@@ -43,14 +43,8 @@ export function CampusLoginPage() {
         return;
       }
 
-      // Route by role
-      if (data.user.role === 'STUDENT') {
-        router.push('/student');
-      } else if (data.user.role === 'FACULTY') {
-        router.push('/faculty');
-      } else {
-        router.push('/admin');
-      }
+      // Route directly to the new dashboard page
+      router.push('/dashboard');
       router.refresh();
     } catch (err) {
       console.error(err);
@@ -86,7 +80,7 @@ export function CampusLoginPage() {
         {/* Top Right Corner - USER SPECIFIED: "there will be an login option for admin page from where onli admin can log in" */}
         <div className="flex items-center space-x-3">
           <Link
-            href="/admin/login"
+            href="/admin-login"
             className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-md shadow-slate-900/15 border border-slate-700 hover:border-indigo-400 transition group"
           >
             <Shield className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition" />
@@ -153,9 +147,9 @@ export function CampusLoginPage() {
                 User name
               </label>
               <input
-                type="email"
+                type="text"
                 required
-                placeholder="Registered email id"
+                placeholder="Registered email or User ID (e.g. student, CSE-2023-042)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-[#5097ea] focus:ring-1 focus:ring-[#5097ea] transition bg-white"
@@ -198,7 +192,7 @@ export function CampusLoginPage() {
               </div>
             </div>
 
-            {/* Login button (matching reference styling #5097ea) */}
+            {/* Login button */}
             <button
               type="submit"
               disabled={loading}
@@ -206,6 +200,78 @@ export function CampusLoginPage() {
             >
               <span>{loading ? 'Logging in...' : 'Login'}</span>
             </button>
+
+            {/* Quick Demo Credentials Autofill */}
+            <div className="pt-3 border-t border-slate-100 text-center space-y-2">
+              <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+                1-Click Demo Accounts:
+              </span>
+
+              {/* Students (3) */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-blue-700 flex items-center justify-center space-x-1">
+                  <span>🎓 Students:</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('student');
+                      setPassword('student123');
+                    }}
+                    className="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[10px] font-semibold text-blue-800 transition cursor-pointer border border-blue-200"
+                  >
+                    Aarav (CSE)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('diya');
+                      setPassword('student123');
+                    }}
+                    className="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[10px] font-semibold text-blue-800 transition cursor-pointer border border-blue-200"
+                  >
+                    Diya (ECE)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail('kabir');
+                      setPassword('student123');
+                    }}
+                    className="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-[10px] font-semibold text-blue-800 transition cursor-pointer border border-blue-200"
+                  >
+                    Kabir (ME)
+                  </button>
+                </div>
+              </div>
+
+              {/* Faculty */}
+              <div className="flex items-center justify-center gap-1.5 pt-1 flex-wrap text-[10px]">
+                <span className="font-bold text-purple-700">👩‍🏫 Faculty:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('faculty');
+                    setPassword('faculty123');
+                  }}
+                  className="px-2 py-1 rounded-md bg-purple-50 hover:bg-purple-100 font-semibold text-purple-800 transition cursor-pointer border border-purple-200"
+                >
+                  Dr. Sunita (HoD)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('vikram');
+                    setPassword('faculty123');
+                  }}
+                  className="px-2 py-1 rounded-md bg-purple-50 hover:bg-purple-100 font-semibold text-purple-800 transition cursor-pointer border border-purple-200"
+                >
+                  Dr. Vikram (Research)
+                </button>
+              </div>
+
+            </div>
           </form>
         </div>
       </main>

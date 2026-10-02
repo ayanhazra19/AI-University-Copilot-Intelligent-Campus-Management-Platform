@@ -3,6 +3,6 @@
 import React from 'react';
 import { StudentDashboardView } from '@/components/dashboards/StudentDashboardView';
 
-export default function StudentPage() {
+export default function StudentDashboardSubPage() {
   return <StudentDashboardView />;
 }

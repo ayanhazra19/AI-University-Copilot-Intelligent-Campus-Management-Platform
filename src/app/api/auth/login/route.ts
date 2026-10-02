@@ -3,13 +3,15 @@ import { authenticateWithPassword } from '@/server/services/authService';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, requiredRole } = await request.json();
+    const body = await request.json();
+    const identifier = body.email || body.username || body.userId;
+    const { password, requiredRole, disallowRole } = body;
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!identifier || !password) {
+      return NextResponse.json({ error: 'User name / email and password are required' }, { status: 400 });
     }
 
-    const result = await authenticateWithPassword(email, password, requiredRole);
+    const result = await authenticateWithPassword(identifier, password, requiredRole, disallowRole);
 
     if (!result.success || !result.user || !result.token) {
       return NextResponse.json({ error: result.error }, { status: result.status || 401 });

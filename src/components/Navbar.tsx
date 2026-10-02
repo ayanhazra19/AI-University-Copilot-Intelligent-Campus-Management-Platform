@@ -65,9 +65,7 @@ export function Navbar({ currentUser }: NavbarProps) {
         body: JSON.stringify({ role: targetRole }),
       });
       if (res.ok) {
-        if (targetRole === 'STUDENT') router.push('/student');
-        else if (targetRole === 'FACULTY') router.push('/faculty');
-        else router.push('/admin');
+        router.push('/dashboard');
         router.refresh();
       }
     } catch (e) {
@@ -100,7 +98,7 @@ export function Navbar({ currentUser }: NavbarProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-2.5 group">
+            <Link href={currentUser ? '/dashboard' : '/'} className="flex items-center space-x-2.5 group">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/25 group-hover:scale-105 transition">
                 <Sparkles className="w-5 h-5" />
               </div>
@@ -130,42 +128,28 @@ export function Navbar({ currentUser }: NavbarProps) {
             )}
           </div>
 
-          {/* Quick Role Switcher Pill Bar (P0 MVP requirement for live hackathon demonstration) */}
-          <div className="hidden lg:flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 text-xs">
-            <span className="px-2 py-1 text-[11px] font-medium text-slate-400">Persona:</span>
-            <button
-              onClick={() => handleRoleSwitch('STUDENT')}
-              disabled={switching}
-              className={`px-3 py-1 rounded-lg font-medium transition ${
-                activeRole === 'STUDENT'
-                  ? 'bg-white text-indigo-700 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Student (Aarav)
-            </button>
-            <button
-              onClick={() => handleRoleSwitch('FACULTY')}
-              disabled={switching}
-              className={`px-3 py-1 rounded-lg font-medium transition ${
-                activeRole === 'FACULTY'
-                  ? 'bg-white text-indigo-700 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Faculty (Dr. Sunita)
-            </button>
-            <button
-              onClick={() => handleRoleSwitch('ADMIN')}
-              disabled={switching}
-              className={`px-3 py-1 rounded-lg font-medium transition ${
+          {/* Verified Institutional Role Indicator (No cross-account switcher) */}
+          <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100/90 border border-slate-200/80 text-xs">
+            <span
+              className={`w-2 h-2 rounded-full ${
                 activeRole === 'ADMIN'
-                  ? 'bg-white text-indigo-700 shadow-xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-rose-500 animate-pulse'
+                  : activeRole === 'FACULTY'
+                  ? 'bg-purple-600'
+                  : 'bg-emerald-500'
               }`}
-            >
-              Admin (Prof. Rajesh)
-            </button>
+            />
+            <span className="font-semibold text-slate-800">
+              {activeRole === 'ADMIN'
+                ? 'Central Administrator'
+                : activeRole === 'FACULTY'
+                ? 'Faculty Academic Authority'
+                : 'Student'}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span className="text-[11px] text-slate-500 font-medium">
+              {currentUser?.name || (activeRole === 'ADMIN' ? 'Prof. Rajesh' : activeRole === 'FACULTY' ? 'Dr. Sunita Rao' : 'Aarav Sharma')}
+            </span>
           </div>
 
           {/* Actions & Utilities */}
@@ -279,44 +263,18 @@ export function Navbar({ currentUser }: NavbarProps) {
         {/* Mobile Navigation Dropdown */}
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-3">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Switch Persona
+            <div className="flex items-center space-x-2 text-xs font-semibold text-slate-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>{currentUser?.name || 'Active Account'}</span>
+              <span className="text-slate-400">({activeRole})</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => {
-                  handleRoleSwitch('STUDENT');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`p-2 rounded-lg text-xs font-medium border text-center ${
-                  activeRole === 'STUDENT' ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200'
-                }`}
-              >
-                Student
-              </button>
-              <button
-                onClick={() => {
-                  handleRoleSwitch('FACULTY');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`p-2 rounded-lg text-xs font-medium border text-center ${
-                  activeRole === 'FACULTY' ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200'
-                }`}
-              >
-                Faculty
-              </button>
-              <button
-                onClick={() => {
-                  handleRoleSwitch('ADMIN');
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`p-2 rounded-lg text-xs font-medium border text-center ${
-                  activeRole === 'ADMIN' ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200'
-                }`}
-              >
-                Admin
-              </button>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full py-2 px-3 rounded-lg bg-rose-50 text-rose-700 font-semibold text-xs flex items-center justify-center space-x-2 cursor-pointer border border-rose-200"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Log Out</span>
+            </button>
           </div>
         )}
       </header>

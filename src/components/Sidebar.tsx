@@ -25,7 +25,7 @@ export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
 
   const studentLinks = [
-    { label: 'Dashboard', href: '/student', icon: LayoutDashboard },
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'AI Copilot', href: '/student/copilot', icon: Sparkles, highlight: true },
     { label: 'Academics & Gaps', href: '/student/academics', icon: GraduationCap },
     { label: 'Complaints', href: '/student/complaints', icon: AlertCircle },
@@ -34,7 +34,7 @@ export function Sidebar({ role }: SidebarProps) {
   ];
 
   const facultyLinks = [
-    { label: 'Dashboard', href: '/faculty', icon: LayoutDashboard },
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Faculty Copilot', href: '/faculty/copilot', icon: Sparkles, highlight: true },
     { label: 'Campus Analytics', href: '/faculty/analytics', icon: BarChart3 },
     { label: 'Academic Analytics', href: '/faculty/academics', icon: GraduationCap },
@@ -43,7 +43,7 @@ export function Sidebar({ role }: SidebarProps) {
   ];
 
   const adminLinks = [
-    { label: 'Admin Dashboard', href: '/admin', icon: LayoutDashboard },
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Admin Copilot', href: '/admin/copilot', icon: Sparkles, highlight: true },
     { label: 'Campus Analytics', href: '/admin/analytics', icon: BarChart3 },
     { label: 'Complaint Command', href: '/admin/complaints', icon: AlertCircle },
@@ -63,7 +63,10 @@ export function Sidebar({ role }: SidebarProps) {
 
         {links.map((link) => {
           const Icon = link.icon;
-          const isActive = pathname === link.href;
+          const isActive =
+            pathname === link.href ||
+            (link.href === '/dashboard' &&
+              (pathname === '/dashboard' || pathname === '/student' || pathname === '/faculty' || pathname === '/admin'));
 
           return (
             <Link

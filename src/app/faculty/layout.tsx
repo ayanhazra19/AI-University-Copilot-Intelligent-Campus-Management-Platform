@@ -2,11 +2,29 @@ import React from 'react';
 import { getCurrentUser } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
+import { AccessDenied } from '@/components/AccessDenied';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FacultyLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+
+  // Enforce strict RBAC: Students cannot access Faculty portal
+  if (user && user.role === 'STUDENT') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        <Navbar currentUser={user} />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <AccessDenied
+            requiredRole="FACULTY"
+            currentRole={user.role}
+            userName={user.name}
+            userEmail={user.email}
+          />
+        </main>
+      </div>
+    );
+  }
 
   const facultyUser = user || {
     id: 'demo-faculty',

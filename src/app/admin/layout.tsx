@@ -2,11 +2,29 @@ import React from 'react';
 import { getCurrentUser } from '@/lib/auth';
 import { Navbar } from '@/components/Navbar';
 import { Sidebar } from '@/components/Sidebar';
+import { AccessDenied } from '@/components/AccessDenied';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+
+  // Enforce strict RBAC: Only ADMIN accounts may access Central Admin Command
+  if (user && user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        <Navbar currentUser={user} />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <AccessDenied
+            requiredRole="ADMIN"
+            currentRole={user.role}
+            userName={user.name}
+            userEmail={user.email}
+          />
+        </main>
+      </div>
+    );
+  }
 
   const adminUser = user || {
     id: 'demo-admin',
